@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Linq;
 using System.Web;
-using System.Web.UI;
 using System.Web.UI.WebControls;
 using Sage.Entity.Interfaces;
 using Sage.Platform.Application;
@@ -29,30 +29,26 @@ namespace FX.Linkedin
                     return;
             
                 var mainContentWorkspace = this.ParentWorkItem.Workspaces["MainContent"] as MainContentWorkspace;
+                if (mainContentWorkspace == null) return;
                 
                 foreach (SmartPart smartPart in mainContentWorkspace.SmartParts)
                 {
-                    if (smartPart.ID == "AccountDetails" || smartPart.ID == "ContactDetails")
-                    {
-                        var btnLinkedin = new ImageButton
-                        {
-                            ImageUrl = "~/images/icon-linkedin.png",
-                            ID = "btnLinkedInSearch",
-                            AlternateText = "Search on LinkedIn...",
-                            ToolTip = "Search on LinkedIn...",
-                            OnClientClick = string.Format("javascript: var win = window.open('{0}');", GetLinkedinQuery())
-                        };
+                    if (smartPart.ID != "AccountDetails" && smartPart.ID != "ContactDetails") continue;
 
-                        foreach (Control control in smartPart.Controls)
-                        {
-                            var container = control as SmartPartToolsContainer;
-                            if (container != null && container.ToolbarLocation == SmartPartToolsLocation.Right)
-                            {
-                                container.Controls.Add(btnLinkedin);
-                            }
-                        }
-                        break;
+                    var btnLinkedin = new ImageButton
+                    {
+                        ImageUrl = "~/images/icon-linkedin.png",
+                        ID = "btnLinkedInSearch",
+                        AlternateText = "Search on LinkedIn...",
+                        ToolTip = string.Format("Search for {0} on LinkedIn...", this.EntityContext.Description),
+                        OnClientClick = string.Format("javascript: var win = window.open('{0}');", GetLinkedinQuery())
+                    };
+
+                    foreach (var container in smartPart.Controls.OfType<SmartPartToolsContainer>().Where(c => c.ToolbarLocation == SmartPartToolsLocation.Right))
+                    {
+                        container.Controls.Add(btnLinkedin);
                     }
+                    break;
                 }
             }
             catch { }
@@ -60,7 +56,7 @@ namespace FX.Linkedin
 
         private string GetLinkedinQuery()
         {
-            const string url = "https://www.linkedin.com/search/results/{0}/?keywords={1}";
+            const string queryUrl = "https://www.linkedin.com/search/results/{0}/?keywords={1}";
 
             var queryType = (this.EntityContext.EntityType == typeof(IAccount) ? "companies" : "people");
             var queryValue = this.EntityContext.Description;
@@ -73,12 +69,12 @@ namespace FX.Linkedin
             else
             {
                 var contact = EntityFactory.GetById<IContact>(this.EntityContext.EntityID);
-                queryValue = (contact.FirstName + " " + contact.LastHistoryBy).Trim();
+                queryValue = (contact.FirstName + " " + contact.LastName).Trim();
                 queryValue += " " + contact.AccountName;
                 
             }
 
-            return string.Format(url,queryType, HttpUtility.UrlEncode(queryValue.Trim()));
+            return string.Format(queryUrl, queryType, HttpUtility.UrlEncode(queryValue.Trim()));
         }
     }
 }
