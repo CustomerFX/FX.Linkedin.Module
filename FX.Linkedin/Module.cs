@@ -7,6 +7,7 @@ using Sage.Platform.Application;
 using Sage.Platform.Application.UI;
 using Sage.Platform.WebPortal.SmartParts;
 using Sage.Platform.WebPortal.Workspaces;
+using Sage.Platform;
 
 namespace FX.Linkedin
 {
@@ -39,7 +40,7 @@ namespace FX.Linkedin
                             ID = "btnLinkedInSearch",
                             AlternateText = "Search on LinkedIn...",
                             ToolTip = "Search on LinkedIn...",
-                            OnClientClick = string.Format("javascript: var win = window.open('{0}');", GetLinkedinQuery(this.EntityContext.EntityType, this.EntityContext.Description))
+                            OnClientClick = string.Format("javascript: var win = window.open('{0}');", GetLinkedinQuery())
                         };
 
                         foreach (Control control in smartPart.Controls)
@@ -57,14 +58,27 @@ namespace FX.Linkedin
             catch { }
         }
 
-        private string GetLinkedinQuery(Type entityType, string entityName)
+        private string GetLinkedinQuery()
         {
             const string url = "https://www.linkedin.com/search/results/{0}/?keywords={1}";
 
-            var queryType = (entityType == typeof(IAccount) ? "companies" : "people");
-            var queryValue = entityName;
+            var queryType = (this.EntityContext.EntityType == typeof(IAccount) ? "companies" : "people");
+            var queryValue = this.EntityContext.Description;
 
-            return string.Format(url,queryType, HttpUtility.UrlEncode(queryValue));
+            if (this.EntityContext.EntityType == typeof(IAccount))
+            {
+                var account = EntityFactory.GetById<IAccount>(this.EntityContext.EntityID);
+                queryValue = account.AccountName;
+            }
+            else
+            {
+                var contact = EntityFactory.GetById<IContact>(this.EntityContext.EntityID);
+                queryValue = (contact.FirstName + " " + contact.LastHistoryBy).Trim();
+                queryValue += " " + contact.AccountName;
+                
+            }
+
+            return string.Format(url,queryType, HttpUtility.UrlEncode(queryValue.Trim()));
         }
     }
 }
